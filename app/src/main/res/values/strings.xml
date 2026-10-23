@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">隐藏相册</string>
+    <string name="album_list_title">相册</string>
+    <string name="settings_title">设置</string>
+    <string name="permission_request">需要访问你的相册</string>
+    <string name="permission_rationale">用来扫描所有相册、隐藏/还原。隐藏后系统相册和其他 APP 都看不到。</string>
+    <string name="permission_grant">授权并继续</string>
+    <string name="hide_in_progress">正在隐藏</string>
+    <string name="restore_in_progress">正在还原</string>
+</resources>

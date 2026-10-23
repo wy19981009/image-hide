@@ -1,0 +1,42 @@
+# --- Gradle / Android Studio / Build outputs ---
+.gradle/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Local config (NEVER commit)
+local.properties
+captures/
+
+# Native build
+.cxx/
+*.so
+
+# Logs (these dump the heap on every crash — full of private state)
+hs_err_pid*.log
+replay_pid*.log
+
+# Keystores
+*.jks
+*.keystore
+release.properties
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Kotlin
+.kotlin/
+
+# WorkBuddy / agent runtime
+.workbuddy/
+
+# Misc
+*.hprof

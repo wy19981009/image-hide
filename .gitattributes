@@ -1,0 +1,28 @@
+# Auto-detect text files, normalize line endings to LF on commit,
+# prevent CRLF / mixed line endings from breaking diffs on Windows.
+* text=auto eol=lf
+
+# Keep these as binary (no text mangling).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.jar binary
+*.aar binary
+*.apk binary
+*.aab binary
+*.so binary
+*.zip binary
+*.7z binary
+*.pdf binary
+
+# Shell scripts must keep LF.
+*.sh          text eol=lf
+*.bat         text eol=crlf
+*.ps1         text eol=crlf
+
+# Markdown should always be LF.
+*.md          text eol=lf
