@@ -47,6 +47,9 @@ data class AlbumListState(
     /** 当前步骤文案，如「隐藏 3/100：IMG_001.jpg」 */
     val statusText: String? = null,
 
+    /** 0=系统相册，1=已隐藏；放 ViewModel 以便进详情再返回时保持 */
+    val selectedTab: Int = 0,
+
     val multiSelect: Boolean = false,
     val selectedAlbums: Set<Long> = emptySet(),
 
@@ -104,6 +107,11 @@ class AlbumListViewModel @Inject constructor(
 
     init {
         refresh()
+    }
+
+    fun setSelectedTab(index: Int) {
+        if (index !in 0..1) return
+        _state.update { it.copy(selectedTab = index) }
     }
 
     fun refresh() {
@@ -592,6 +600,26 @@ class AlbumListViewModel @Inject constructor(
             val sel = it.selectedAlbums.toMutableSet()
             if (sel.contains(id)) sel.remove(id) else sel.add(id)
             it.copy(selectedAlbums = sel)
+        }
+    }
+
+    /** 滑动多选相册：返回本次拖动统一目标选中态 */
+    fun beginDragSelectAlbum(id: Long): Boolean {
+        val state = _state.value
+        val target = if (!state.multiSelect) true else id !in state.selectedAlbums
+        _state.update {
+            val sel = it.selectedAlbums.toMutableSet()
+            if (target) sel.add(id) else sel.remove(id)
+            it.copy(multiSelect = true, selectedAlbums = sel)
+        }
+        return target
+    }
+
+    fun setAlbumSelected(id: Long, selected: Boolean) {
+        _state.update {
+            val sel = it.selectedAlbums.toMutableSet()
+            if (selected) sel.add(id) else sel.remove(id)
+            it.copy(multiSelect = true, selectedAlbums = sel)
         }
     }
 

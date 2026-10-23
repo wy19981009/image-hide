@@ -171,6 +171,33 @@ class AlbumDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 滑动多选：手指落点开始一次拖选。
+     * @return 本次拖动手势要统一成的目标选中状态（落在已选项上则一路取消，否则一路选中）
+     */
+    fun beginDragSelect(id: Long): Boolean {
+        val state = _state.value
+        val target = if (!state.multiSelect) {
+            true
+        } else {
+            id !in state.selected
+        }
+        _state.update {
+            val sel = it.selected.toMutableSet()
+            if (target) sel.add(id) else sel.remove(id)
+            it.copy(multiSelect = true, selected = sel)
+        }
+        return target
+    }
+
+    fun setItemSelected(id: Long, selected: Boolean) {
+        _state.update {
+            val sel = it.selected.toMutableSet()
+            if (selected) sel.add(id) else sel.remove(id)
+            it.copy(multiSelect = true, selected = sel)
+        }
+    }
+
     fun selectAll() {
         _state.update { it.copy(selected = it.media.map { m -> m.id }.toSet()) }
     }

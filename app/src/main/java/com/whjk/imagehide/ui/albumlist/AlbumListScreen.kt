@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
@@ -41,7 +42,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +58,7 @@ import com.whjk.imagehide.ui.common.AuthGateDialog
 import com.whjk.imagehide.ui.common.ManageAllFilesGuideDialog
 import com.whjk.imagehide.ui.common.RestoreFolderDialog
 import com.whjk.imagehide.ui.common.WorkProgressDialog
+import com.whjk.imagehide.ui.common.listDragSelect
 import dagger.hilt.android.EntryPointAccessors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,7 +70,7 @@ fun AlbumListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val safRequest by viewModel.safRequest.observeAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val selectedTab = state.selectedTab
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     val auth = remember(context) {
@@ -236,12 +237,12 @@ fun AlbumListScreen(
             TabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
-                    onClick = { if (!state.working) selectedTab = 0 },
+                    onClick = { if (!state.working) viewModel.setSelectedTab(0) },
                     text = { Text("系统 (${state.systemAlbums.size})") }
                 )
                 Tab(
                     selected = selectedTab == 1,
-                    onClick = { if (!state.working) selectedTab = 1 },
+                    onClick = { if (!state.working) viewModel.setSelectedTab(1) },
                     text = { Text("已隐藏 (${state.hiddenAlbums.size})") }
                 )
             }
@@ -266,6 +267,7 @@ fun AlbumListScreen(
                     hidden = true,
                     multiSelect = state.multiSelect,
                     selected = state.selectedAlbums,
+                    dragSelectEnabled = !state.working,
                     onAlbumClick = { a ->
                         if (state.working) return@AlbumTabContent
                         if (state.multiSelect) {
@@ -283,6 +285,15 @@ fun AlbumListScreen(
                         }
                     },
                     onLongPress = { if (!state.working) viewModel.onAlbumLongPress(it) },
+                    onDragSelectStart = { index ->
+                        val id = state.hiddenAlbums.getOrNull(index)?.bucketId
+                            ?: return@AlbumTabContent true
+                        viewModel.beginDragSelectAlbum(id)
+                    },
+                    onDragSelectOver = { index, select ->
+                        val id = state.hiddenAlbums.getOrNull(index)?.bucketId ?: return@AlbumTabContent
+                        viewModel.setAlbumSelected(id, select)
+                    },
                     onRetry = { viewModel.refresh() }
                 )
             }
@@ -298,9 +309,12 @@ private fun AlbumTabContent(
     hidden: Boolean,
     multiSelect: Boolean,
     selected: Set<Long>,
+    dragSelectEnabled: Boolean = false,
     onAlbumClick: (Album) -> Unit,
     onToggleHide: (Album) -> Unit,
     onLongPress: (Album) -> Unit,
+    onDragSelectStart: (index: Int) -> Boolean = { true },
+    onDragSelectOver: (index: Int, select: Boolean) -> Unit = { _, _ -> },
     onRetry: () -> Unit
 ) {
     if (loading) {
@@ -319,7 +333,29 @@ private fun AlbumTabContent(
         return
     }
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    val listState = rememberLazyListState()
+    var dragSelecting by remember { mutableStateOf(false) }
+
+    LazyColumn(
+        state = listState,
+        userScrollEnabled = !dragSelecting,
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (dragSelectEnabled && albums.isNotEmpty()) {
+                    Modifier.listDragSelect(
+                        enabled = true,
+                        listState = listState,
+                        itemCount = albums.size,
+                        onDragStart = onDragSelectStart,
+                        onDragOver = onDragSelectOver,
+                        onDragSessionChange = { dragSelecting = it }
+                    )
+                } else {
+                    Modifier
+                }
+            )
+    ) {
         if (albums.isEmpty()) {
             item {
                 Box(
@@ -339,9 +375,12 @@ private fun AlbumTabContent(
                     isHidden = hidden,
                     multiSelect = multiSelect,
                     selected = selected.contains(album.bucketId),
-                    onClick = { onAlbumClick(album) },
+                    onClick = {
+                        if (!dragSelecting) onAlbumClick(album)
+                    },
                     onToggleHidden = { onToggleHide(album) },
-                    onLongClick = { onLongPress(album) }
+                    // 开启滑动多选时由列表手势处理长按，避免和卡片抢事件
+                    onLongClick = if (dragSelectEnabled) null else {{ onLongPress(album) }}
                 )
             }
         }

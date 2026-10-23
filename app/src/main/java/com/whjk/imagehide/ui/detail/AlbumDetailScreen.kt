@@ -8,9 +8,9 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -76,6 +77,7 @@ import com.whjk.imagehide.domain.model.MediaItem
 import com.whjk.imagehide.ui.common.ManageAllFilesGuideDialog
 import com.whjk.imagehide.ui.common.RestoreFolderDialog
 import com.whjk.imagehide.ui.common.WorkProgressDialog
+import com.whjk.imagehide.ui.common.gridDragSelect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +93,8 @@ fun AlbumDetailScreen(
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     var sortMenuOpen by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+    var dragSelecting by remember { mutableStateOf(false) }
 
     LaunchedEffect(bucketId, albumName, hidden) {
         viewModel.load(bucketId, albumName, hidden)
@@ -292,8 +296,24 @@ fun AlbumDetailScreen(
 
                 else -> LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
+                    state = gridState,
                     contentPadding = PaddingValues(1.dp),
-                    userScrollEnabled = !state.working
+                    // 拖选时关掉滚动，避免和滑动选图抢手势
+                    userScrollEnabled = !state.working && !dragSelecting,
+                    modifier = Modifier.gridDragSelect(
+                        enabled = !state.working,
+                        gridState = gridState,
+                        itemCount = state.media.size,
+                        onDragStart = { index ->
+                            val id = state.media.getOrNull(index)?.id ?: return@gridDragSelect true
+                            viewModel.beginDragSelect(id)
+                        },
+                        onDragOver = { index, select ->
+                            val id = state.media.getOrNull(index)?.id ?: return@gridDragSelect
+                            viewModel.setItemSelected(id, select)
+                        },
+                        onDragSessionChange = { dragSelecting = it }
+                    )
                 ) {
                     itemsIndexed(
                         items = state.media,
@@ -308,19 +328,11 @@ fun AlbumDetailScreen(
                             selected = selected,
                             multiSelect = state.multiSelect,
                             onClick = {
-                                if (state.working) return@MediaThumbnail
+                                if (state.working || dragSelecting) return@MediaThumbnail
                                 if (state.multiSelect) {
                                     viewModel.onMediaTap(item)
                                 } else {
                                     onMediaClick(index)
-                                }
-                            },
-                            onLongClick = {
-                                if (state.working) return@MediaThumbnail
-                                if (!state.multiSelect) {
-                                    viewModel.onMediaLongPress(item)
-                                } else {
-                                    viewModel.onMediaTap(item)
                                 }
                             }
                         )
@@ -331,14 +343,12 @@ fun AlbumDetailScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MediaThumbnail(
     item: MediaItem,
     selected: Boolean = false,
     multiSelect: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onClick: () -> Unit
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -361,13 +371,19 @@ fun MediaThumbnail(
             .crossfade(false)
             .build()
     }
+    // 不用 combinedClickable：长按拖选由外层 gridDragSelect 处理，避免抢手势
+    val interaction = remember { MutableInteractionSource() }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .padding(1.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick
+            )
     ) {
         AsyncImage(
             model = model,

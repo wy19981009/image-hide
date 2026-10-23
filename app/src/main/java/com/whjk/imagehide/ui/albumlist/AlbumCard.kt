@@ -2,7 +2,9 @@ package com.whjk.imagehide.ui.albumlist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,7 +49,7 @@ import com.whjk.imagehide.domain.model.Album
  *
  * - 封面：Coil 加载 coverPath（content://）
  * - 名称 + 媒体数 + 隐藏/显示按钮
- * - 长按进入多选（隐藏相册 Tab 用）
+ * - 长按进入多选（隐藏相册 Tab 用）；[onLongClick] 为 null 时交给外层滑动多选手势
  * - 多选模式下显示 √ 角标
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -59,13 +61,23 @@ fun AlbumCard(
     selected: Boolean = false,
     onClick: () -> Unit,
     onToggleHidden: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onLongClick: (() -> Unit)? = null
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val clickMod = if (onLongClick != null) {
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    } else {
+        Modifier.clickable(
+            interactionSource = interaction,
+            indication = null,
+            onClick = onClick
+        )
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .then(clickMod)
     ) {
         Row(
             modifier = Modifier
