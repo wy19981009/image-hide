@@ -285,16 +285,8 @@ fun AlbumListScreen(
                         }
                     },
                     onLongPress = { if (!state.working) viewModel.onAlbumLongPress(it) },
-                    onDragSelectStart = { index ->
-                        val id = state.hiddenAlbums.getOrNull(index)?.bucketId
-                            ?: return@AlbumTabContent true
-                        viewModel.beginDragSelectAlbum(id)
-                    },
-                    onDragSelectOver = { index, select ->
-                        val id = state.hiddenAlbums.getOrNull(index)?.bucketId ?: return@AlbumTabContent
-                        viewModel.setAlbumSelected(id, select)
-                    },
-                    onRetry = { viewModel.refresh() }
+                    onRetry = { viewModel.refresh() },
+                    onReplaceSelection = { viewModel.setSelectedAlbumIds(it) }
                 )
             }
         }
@@ -313,8 +305,7 @@ private fun AlbumTabContent(
     onAlbumClick: (Album) -> Unit,
     onToggleHide: (Album) -> Unit,
     onLongPress: (Album) -> Unit,
-    onDragSelectStart: (index: Int) -> Boolean = { true },
-    onDragSelectOver: (index: Int, select: Boolean) -> Unit = { _, _ -> },
+    onReplaceSelection: (Set<Long>) -> Unit = {},
     onRetry: () -> Unit
 ) {
     if (loading) {
@@ -334,22 +325,19 @@ private fun AlbumTabContent(
     }
 
     val listState = rememberLazyListState()
-    var dragSelecting by remember { mutableStateOf(false) }
 
     LazyColumn(
         state = listState,
-        userScrollEnabled = !dragSelecting,
         modifier = Modifier
             .fillMaxSize()
             .then(
                 if (dragSelectEnabled && albums.isNotEmpty()) {
                     Modifier.listDragSelect(
-                        enabled = true,
-                        listState = listState,
-                        itemCount = albums.size,
-                        onDragStart = onDragSelectStart,
-                        onDragOver = onDragSelectOver,
-                        onDragSessionChange = { dragSelecting = it }
+                        lazyListState = listState,
+                        itemIdsInOrder = { albums.map { it.bucketId } },
+                        selectedIds = { selected },
+                        setSelectedIds = onReplaceSelection,
+                        enabled = true
                     )
                 } else {
                     Modifier
@@ -375,11 +363,9 @@ private fun AlbumTabContent(
                     isHidden = hidden,
                     multiSelect = multiSelect,
                     selected = selected.contains(album.bucketId),
-                    onClick = {
-                        if (!dragSelecting) onAlbumClick(album)
-                    },
                     onToggleHidden = { onToggleHide(album) },
-                    // 开启滑动多选时由列表手势处理长按，避免和卡片抢事件
+                    onClick = { onAlbumClick(album) },
+                    // 开启 listDragSelect 时不要 item 长按，否则会抢走滑动多选
                     onLongClick = if (dragSelectEnabled) null else {{ onLongPress(album) }}
                 )
             }

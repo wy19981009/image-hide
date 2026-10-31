@@ -198,6 +198,11 @@ class AlbumDetailViewModel @Inject constructor(
         }
     }
 
+    /** 滑动多选：整表替换选中集合（官方区间选中算法用） */
+    fun setSelectedIds(ids: Set<Long>) {
+        _state.update { it.copy(multiSelect = true, selected = ids) }
+    }
+
     fun selectAll() {
         _state.update { it.copy(selected = it.media.map { m -> m.id }.toSet()) }
     }

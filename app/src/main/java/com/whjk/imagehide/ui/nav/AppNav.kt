@@ -18,9 +18,9 @@ object Routes {
     const val PERMISSION = "permission"
     const val LOCK = "lock"
     const val ALBUM_LIST = "albums"
-    /** 路径参数传递 startIndex，避免 query 解析丢参数导致永远打开第 0 张 */
     const val ALBUM_DETAIL = "albums/{bucketId}?name={name}&hidden={hidden}"
-    const val MEDIA_VIEWER = "viewer/{albumId}/{startIndex}?hidden={hidden}"
+    /** 用 mediaId 定位预览，避免列表排序与预览页顺序不一致导致点错图 */
+    const val MEDIA_VIEWER = "viewer/{albumId}?startId={startId}&hidden={hidden}&sort={sort}"
     const val SETTINGS = "settings"
 
     fun albumDetail(bucketId: Long, name: String, hidden: Boolean = false): String {
@@ -28,8 +28,12 @@ object Routes {
         return "albums/$bucketId?name=$encoded&hidden=$hidden"
     }
 
-    fun mediaViewer(albumId: Long, startIndex: Int, hidden: Boolean = false) =
-        "viewer/$albumId/$startIndex?hidden=$hidden"
+    fun mediaViewer(
+        albumId: Long,
+        startId: Long,
+        hidden: Boolean = false,
+        sort: String = "TIME_DESC"
+    ) = "viewer/$albumId?startId=$startId&hidden=$hidden&sort=$sort"
 }
 
 @Composable
@@ -78,8 +82,8 @@ fun AppNav() {
                 bucketId = bucketId,
                 albumName = name,
                 hidden = hidden,
-                onMediaClick = { startIndex ->
-                    nav.navigate(Routes.mediaViewer(bucketId, startIndex, hidden))
+                onMediaClick = { mediaId, sort ->
+                    nav.navigate(Routes.mediaViewer(bucketId, mediaId, hidden, sort.name))
                 },
                 onBack = { nav.popBackStack() }
             )
@@ -88,17 +92,20 @@ fun AppNav() {
             route = Routes.MEDIA_VIEWER,
             arguments = listOf(
                 navArgument("albumId") { type = NavType.LongType },
-                navArgument("startIndex") { type = NavType.IntType },
-                navArgument("hidden") { type = NavType.StringType; defaultValue = "false" }
+                navArgument("startId") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("hidden") { type = NavType.StringType; defaultValue = "false" },
+                navArgument("sort") { type = NavType.StringType; defaultValue = "TIME_DESC" }
             )
         ) { backStackEntry ->
             val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
-            val startIndex = backStackEntry.arguments?.getInt("startIndex") ?: 0
+            val startId = backStackEntry.arguments?.getLong("startId") ?: -1L
             val hidden = backStackEntry.arguments?.getString("hidden")?.toBooleanStrictOrNull() ?: false
+            val sortName = backStackEntry.arguments?.getString("sort") ?: "TIME_DESC"
             MediaViewerScreen(
                 albumId = albumId,
-                startIndex = startIndex,
+                startId = startId,
                 hidden = hidden,
+                sortName = sortName,
                 onBack = { nav.popBackStack() }
             )
         }

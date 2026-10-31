@@ -623,6 +623,10 @@ class AlbumListViewModel @Inject constructor(
         }
     }
 
+    fun setSelectedAlbumIds(ids: Set<Long>) {
+        _state.update { it.copy(multiSelect = true, selectedAlbums = ids) }
+    }
+
     fun selectAllAlbums() {
         _state.update {
             it.copy(selectedAlbums = it.hiddenAlbums.map { a -> a.bucketId }.toSet())

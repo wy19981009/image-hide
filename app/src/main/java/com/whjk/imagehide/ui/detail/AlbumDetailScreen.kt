@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,7 +85,7 @@ fun AlbumDetailScreen(
     bucketId: Long,
     albumName: String,
     hidden: Boolean,
-    onMediaClick: (startIndex: Int) -> Unit,
+    onMediaClick: (mediaId: Long, sort: MediaSort) -> Unit,
     onBack: () -> Unit,
     viewModel: AlbumDetailViewModel = hiltViewModel()
 ) {
@@ -94,7 +94,6 @@ fun AlbumDetailScreen(
     val context = LocalContext.current
     var sortMenuOpen by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
-    var dragSelecting by remember { mutableStateOf(false) }
 
     LaunchedEffect(bucketId, albumName, hidden) {
         viewModel.load(bucketId, albumName, hidden)
@@ -298,43 +297,38 @@ fun AlbumDetailScreen(
                     columns = GridCells.Fixed(3),
                     state = gridState,
                     contentPadding = PaddingValues(1.dp),
-                    // 拖选时关掉滚动，避免和滑动选图抢手势
-                    userScrollEnabled = !state.working && !dragSelecting,
+                    userScrollEnabled = !state.working,
+                    // 官方做法：拖选手势挂在 Grid 上，用 layoutInfo 命中 + 区间选中
                     modifier = Modifier.gridDragSelect(
-                        enabled = !state.working,
-                        gridState = gridState,
-                        itemCount = state.media.size,
-                        onDragStart = { index ->
-                            val id = state.media.getOrNull(index)?.id ?: return@gridDragSelect true
-                            viewModel.beginDragSelect(id)
-                        },
-                        onDragOver = { index, select ->
-                            val id = state.media.getOrNull(index)?.id ?: return@gridDragSelect
-                            viewModel.setItemSelected(id, select)
-                        },
-                        onDragSessionChange = { dragSelecting = it }
+                        lazyGridState = gridState,
+                        itemIdsInOrder = { state.media.map { it.id } },
+                        selectedIds = { state.selected },
+                        setSelectedIds = { viewModel.setSelectedIds(it) },
+                        enabled = !state.working
                     )
                 ) {
-                    itemsIndexed(
+                    items(
                         items = state.media,
-                        key = { _, item -> item.id },
-                        contentType = { _, item ->
+                        key = { item -> item.id },
+                        contentType = { item ->
                             if (item.mediaType == MediaItem.Type.VIDEO) "v" else "i"
                         }
-                    ) { index, item ->
+                    ) { item ->
                         val selected = state.selected.contains(item.id)
                         MediaThumbnail(
                             item = item,
                             selected = selected,
                             multiSelect = state.multiSelect,
+                            enabled = !state.working,
                             onClick = {
-                                if (state.working || dragSelecting) return@MediaThumbnail
                                 if (state.multiSelect) {
                                     viewModel.onMediaTap(item)
                                 } else {
-                                    onMediaClick(index)
+                                    onMediaClick(item.id, state.sort)
                                 }
                             }
+                            // 注意：不要在 item 上挂长按！长按+滑动由 gridDragSelect 统一处理，
+                            // 否则 combinedClickable 会抢走手势，导致无法滑动多选。
                         )
                     }
                 }
@@ -348,7 +342,9 @@ fun MediaThumbnail(
     item: MediaItem,
     selected: Boolean = false,
     multiSelect: Boolean = false,
-    onClick: () -> Unit
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -371,7 +367,6 @@ fun MediaThumbnail(
             .crossfade(false)
             .build()
     }
-    // 不用 combinedClickable：长按拖选由外层 gridDragSelect 处理，避免抢手势
     val interaction = remember { MutableInteractionSource() }
 
     Box(
@@ -379,7 +374,10 @@ fun MediaThumbnail(
             .fillMaxWidth()
             .aspectRatio(1f)
             .padding(1.dp)
+            .then(modifier)
+            // 只用短按；长按拖选交给外层 LazyGrid.gridDragSelect
             .clickable(
+                enabled = enabled,
                 interactionSource = interaction,
                 indication = null,
                 onClick = onClick

@@ -12,6 +12,12 @@
 # Media3
 -keep class androidx.media3.exoplayer.** { *; }
 
+# IJK / GSY
+-keep class tv.danmaku.ijk.media.player.** { *; }
+-keep class com.shuyu.gsyvideoplayer.** { *; }
+-dontwarn tv.danmaku.ijk.media.player.**
+-dontwarn com.shuyu.gsyvideoplayer.**
+
 # Coil
 -keep class coil.** { *; }
 

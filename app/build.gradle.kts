@@ -19,6 +19,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -95,9 +98,13 @@ dependencies {
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
 
-    // Media3
+    // Media3（Coil 缩略图等仍可能用到）
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
+
+    // GSY IJK only（不要完整包，会传递 media3 1.10 要求 compileSdk 36）
+    implementation(libs.gsyvideoplayer.java)
+    implementation(libs.gsyvideoplayer.arm64)
 
     // Coil
     implementation(libs.coil.compose)

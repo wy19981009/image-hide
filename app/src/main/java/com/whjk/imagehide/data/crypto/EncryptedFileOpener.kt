@@ -32,14 +32,24 @@ class EncryptedFileOpener @Inject constructor(
         if (!source.exists()) return source
         if (!source.name.endsWith(CryptoManager.ENC_SUFFIX)) return source
         val cacheFile = File(cacheDir, "dec_${source.nameWithoutExtension}")
-        if (cacheFile.exists() && cacheFile.length() > 0) return cacheFile
+        val metaFile = File(cacheDir, "dec_${source.nameWithoutExtension}.src")
+        val srcToken = "${source.length()}:${source.lastModified()}"
+        // 不完整/过期缓存会导致能播但不能 seek（一拖就回开头）
+        if (cacheFile.exists() && cacheFile.length() > 0 &&
+            metaFile.exists() && metaFile.readText() == srcToken
+        ) {
+            return cacheFile
+        }
 
         cacheFile.parentFile?.mkdirs()
+        cacheFile.delete()
+        metaFile.delete()
         FileInputStream(source).use { input ->
             cacheFile.outputStream().use { output ->
                 crypto.decryptStream(input, output)
             }
         }
+        metaFile.writeText(srcToken)
         return cacheFile
     }
 

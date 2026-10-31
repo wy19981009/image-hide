@@ -17,6 +17,7 @@ hilt-work = "1.2.0"
 telephoto = "0.13.0"
 biometric = "1.1.0"
 appcompat = "1.7.0"
+gsy-video = "14.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -48,6 +49,9 @@ coil-video = { group = "io.coil-kt", name = "coil-video", version.ref = "coil" }
 telephoto-zoomable-image-coil = { group = "me.saket.telephoto", name = "zoomable-image-coil", version.ref = "telephoto" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+# 只用 IJK 内核，避免完整包拉入 media3 1.10（需要 compileSdk 36）
+gsyvideoplayer-java = { group = "io.github.carguo", name = "gsyvideoplayer-java", version.ref = "gsy-video" }
+gsyvideoplayer-arm64 = { group = "io.github.carguo", name = "gsyvideoplayer-arm64", version.ref = "gsy-video" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
